@@ -105,3 +105,32 @@ def test_score_llm_auth_error_fallback_rule(client, monkeypatch):
     data = resp.json()
     assert data["channel"] == "rule"
     assert data["reason"] == "rule_based"
+
+def test_score_response_has_request_id(client):
+    resp = client.post("/score", json={"text": "hello request id"})
+    assert resp.status_code == 200
+    assert "X-Request-ID" in resp.headers
+    assert resp.headers["X-Request-ID"]
+
+from fastapi.testclient import TestClient
+from app.main import app
+
+
+def test_score_unknown_llm_error_should_not_fallback(monkeypatch):
+    from app.services import scorer
+    from app.core.config import settings
+
+    class UnknownLLMError(Exception):
+        pass
+
+    def raise_unknown(_text: str):
+        raise UnknownLLMError("boom")
+
+    monkeypatch.setattr(settings, "ENABLE_LLM", True)
+    monkeypatch.setattr(scorer, "llm_score", raise_unknown)
+
+    # 关键：关闭“抛服务端异常”行为，改为返回 500 响应
+    client = TestClient(app, raise_server_exceptions=False)
+
+    resp = client.post("/score", json={"text": "trigger unknown error"})
+    assert resp.status_code == 500

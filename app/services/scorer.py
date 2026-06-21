@@ -1,8 +1,16 @@
+import logging
+
 from app.core.config import settings
+from app.services.llm_client import (
+    score_with_llm,
+    LLMTimeoutError,
+    LLMAuthError,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def rule_score(text: str) -> dict:
-    # 这里保持你现有规则逻辑即可；以下是一个稳定占位实现
     score = min(len(text), 100)
     return {
         "score": score,
@@ -12,27 +20,21 @@ def rule_score(text: str) -> dict:
 
 
 def llm_score(text: str) -> dict:
-    """
-    LLM桩函数（当前不发起真实外部调用）
-    - 有 key：返回 llm 通道占位结果
-    - 无 key：抛错，触发上层回退
-    """
-    if not settings.LLM_API_KEY:
-        raise RuntimeError("LLM_API_KEY is missing")
-
-    # 占位输出：后续再替换为真实LLM调用
-    return {
-        "score": 88,
-        "channel": "llm",
-        "reason": "llm_stub",
-    }
+    return score_with_llm(text=text, api_key=settings.LLM_API_KEY)
 
 
 def score_text(text: str) -> dict:
     if settings.ENABLE_LLM:
         try:
-            return llm_score(text)
-        except Exception:
+            result = llm_score(text)
+            logger.info("score.success channel=llm")
+            return result
+        except LLMTimeoutError as e:
+            logger.warning("score.fallback reason=llm_timeout error=%s", str(e))
             return rule_score(text)
-    return rule_score(text)
+        except LLMAuthError as e:
+            logger.warning("score.fallback reason=llm_auth error=%s", str(e))
+            return rule_score(text)
 
+    logger.info("score.success channel=rule reason=llm_disabled")
+    return rule_score(text)
