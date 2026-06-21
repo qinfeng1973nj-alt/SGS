@@ -1,19 +1,11 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+from dataclasses import dataclass
 
 
-class Settings(BaseSettings):
-    app_name: str = "SGS"
-    app_env: str = "dev"
-
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+@dataclass
+class Settings:
+    enable_llm: bool = os.getenv("ENABLE_LLM", "false").lower() == "true"
+    llm_api_key: str = os.getenv("LLM_API_KEY", "")
 
 
 settings = Settings()

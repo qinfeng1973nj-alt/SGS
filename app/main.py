@@ -1,19 +1,15 @@
 from fastapi import FastAPI
-from app.core.config import settings
-from app.routes.system import router as system_router
-from app.routes.score import router as score_router
+from pydantic import BaseModel
 
-app = FastAPI(title=settings.app_name)
+from app.services.scorer import score_text
 
-app.include_router(system_router)
-app.include_router(score_router)
+app = FastAPI()
 
 
-@app.get("/system/config-status")
-def config_status():
-    return {
-        "app_name": settings.app_name,
-        "app_env": settings.app_env,
-        "openai_configured": bool(settings.openai_api_key),
-        "openai_model": settings.openai_model,
-    }
+class ScoreRequest(BaseModel):
+    text: str
+
+
+@app.post("/score")
+def score(req: ScoreRequest):
+    return score_text(req.text)
