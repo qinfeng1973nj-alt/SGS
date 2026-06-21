@@ -1,11 +1,16 @@
-import os
-from dataclasses import dataclass
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass
-class Settings:
-    enable_llm: bool = os.getenv("ENABLE_LLM", "false").lower() == "true"
-    llm_api_key: str = os.getenv("LLM_API_KEY", "")
+class Settings(BaseSettings):
+    ENABLE_LLM: bool = False
+    LLM_API_KEY: str = ""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 settings = Settings()
+
