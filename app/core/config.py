@@ -7,7 +7,11 @@ class Settings(BaseSettings):
 
     ENABLE_LLM: bool = False
     LLM_API_KEY: str | None = None
-    LLM_TIMEOUT_SECONDS: int = 10
+
+    LLM_PROVIDER: str = "deepseek"          # deepseek | doubao | openai
+    LLM_BASE_URL: str | None = None
+    LLM_MODEL: str = "deepseek-chat"
+    LLM_TIMEOUT_SECONDS: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",
