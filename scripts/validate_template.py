@@ -7,7 +7,7 @@ def validate_template(path: Path) -> None:
     if not path.exists():
         raise FileNotFoundError(f"模板文件不存在: {path}")
 
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
 
     required_top_fields = ["template_id", "course", "assignment_type", "dimensions"]
     for f in required_top_fields:
