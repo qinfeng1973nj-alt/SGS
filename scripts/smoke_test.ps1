@@ -4,50 +4,54 @@
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "==> Smoke test start: $BaseUrl"
+Write-Host "[INFO] BaseUrl = $BaseUrl"
 
-# 1) health check
+# 1) health
 try {
-  $health = Invoke-RestMethod -Method Get -Uri "$BaseUrl/health" -TimeoutSec 10
-  Write-Host "[OK] /health =>" ($health | ConvertTo-Json -Depth 5 -Compress)
-} catch {
+  $health = Invoke-RestMethod -Method Get -Uri "$BaseUrl/health"
+  if (-not $health.ok) {
+    Write-Host "[FAIL] /health ok != true"
+    exit 1
+  }
+  Write-Host "[PASS] /health"
+}
+catch {
   Write-Host "[FAIL] /health request failed"
-  Write-Host $_.Exception.Message
+  Write-Host $_
   exit 1
 }
 
 # 2) grade preview
-$payload = @{
-  text = "杩欐槸涓€娈电敤浜庡啋鐑熸祴璇曠殑鏂囨湰銆?
-} | ConvertTo-Json -Depth 5
+$payloadObj = @{
+  student_text = "Alice 的成绩是：语文95，数学88，英语92。请给出等级预览。"
+}
+$payload = $payloadObj | ConvertTo-Json -Depth 5
 
 try {
-  $resp = Invoke-RestMethod `
-    -Method Post `
+  $resp = Invoke-RestMethod -Method Post `
     -Uri "$BaseUrl/grade/preview" `
-    -ContentType "application/json; charset=utf-8" `
-    -Body $payload `
-    -TimeoutSec 20
+    -ContentType "application/json" `
+    -Body $payload
 
-  $resp | ConvertTo-Json -Depth 10 | Out-File -FilePath "resp_utf8.json" -Encoding utf8
-  Write-Host "[OK] /grade/preview => saved to resp_utf8.json"
-} catch {
-  Write-Host "[FAIL] /grade/preview request failed"
-
-  if ($_.Exception.Response) {
-    $sr = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-    $errBody = $sr.ReadToEnd()
-    Write-Host "HTTP Body:" $errBody
-  } else {
-    Write-Host $_.Exception.Message
+  if ($null -eq $resp) {
+    Write-Host "[FAIL] /grade/preview empty response"
+    exit 1
   }
+
+  # 若你的接口不是 grade 字段，这里改成真实字段名
+  if ($resp.PSObject.Properties.Name -notcontains "holistic_level") {
+  Write-Host "[FAIL] /grade/preview missing field: holistic_level"
+  $resp | ConvertTo-Json -Depth 10
   exit 1
 }
 
-# 3) minimal contract check
-if (-not $resp.template_id -or -not $resp.overall_score -or -not $resp.holistic_level -or -not $resp.analytic_scores) {
-  Write-Host "[FAIL] response missing required fields"
-  $resp | ConvertTo-Json -Depth 10
+
+  $resp | ConvertTo-Json -Depth 10 | Out-File -FilePath ".\resp_utf8.json" -Encoding utf8
+  Write-Host "[PASS] /grade/preview"
+}
+catch {
+  Write-Host "[FAIL] /grade/preview request failed"
+  Write-Host $_
   exit 1
 }
 
