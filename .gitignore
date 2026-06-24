@@ -15,3 +15,5 @@ resp_utf8.json
 resp.json
 uvicorn.out.log
 uvicorn.err.log
+
+data/
