@@ -1,20 +1,21 @@
-﻿name: smoke
+﻿name: smoke-test
 
 on:
   push:
+    branches: [ "master", "main" ]
   pull_request:
-  workflow_dispatch:
+    branches: [ "master", "main" ]
 
 jobs:
-  smoke-test:
+  smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -22,28 +23,34 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Start API
+      - name: Start app
         run: |
-          nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.out.log 2> uvicorn.err.log &
-          echo $! > uvicorn.pid
+          nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > app.log 2>&1 &
+          echo $! > app.pid
 
-      - name: Wait for health
+      - name: Wait for /health
+        shell: bash
         run: |
           for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:8000/health > /dev/null; then
+            code=$(curl -s -o /tmp/health.json -w "%{http_code}" http://127.0.0.1:8000/health || true)
+            if [ "$code" = "200" ]; then
               echo "health ok"
+              cat /tmp/health.json
               exit 0
             fi
             sleep 1
           done
           echo "health check timeout"
+          cat app.log || true
           exit 1
 
-      - name: Run smoke test
+      - name: Run smoke test (PowerShell)
         shell: pwsh
-        run: ./scripts/smoke_test.ps1
+        run: |
+          ./scripts/smoke_test.ps1 -BaseUrl "http://127.0.0.1:8000"
 
       - name: Upload artifacts
         if: always()
@@ -51,11 +58,11 @@ jobs:
         with:
           name: smoke-artifacts
           path: |
+            app.log
             resp_utf8.json
-            uvicorn.out.log
-            uvicorn.err.log
+            /tmp/health.json
 
       - name: Cleanup
         if: always()
         run: |
-          if [ -f uvicorn.pid ]; then kill $(cat uvicorn.pid) || true; fi
+          if [ -f app.pid ]; then kill $(cat app.pid) || true; fi

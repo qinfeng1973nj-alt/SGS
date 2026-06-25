@@ -50,11 +50,6 @@ def health():
 
 
 @app.post("/score")
-def score(payload: ScoreRequest, request: Request):
-    result = score_text(payload.text)
-    logger.info(
-        "api.score request_id=%s channel=%s",
-        request.state.request_id,
-        result.get("channel"),
-    )
-    return result
+def score(payload: dict):
+    text = payload.get("text", "")
+    return score_text(text)
