@@ -1,59 +1,67 @@
-{
-  "template_id": "mgmt_case_v1",
-  "course": "管理学",
-  "assignment_type": "案例分析",
-  "analytic_scores": [
-    {
-      "dimension_id": "theory_application",
-      "dimension_name": "理论应用",
-      "weight": 0.35,
-      "score": 55,
-      "evidence_links": []
-    },
-    {
-      "dimension_id": "logic_structure",
-      "dimension_name": "逻辑结构",
-      "weight": 0.25,
-      "score": 50,
-      "evidence_links": []
-    },
-    {
-      "dimension_id": "evidence_support",
-      "dimension_name": "证据支撑",
-      "weight": 0.2,
-      "score": 52,
-      "evidence_links": []
-    },
-    {
-      "dimension_id": "context_fit",
-      "dimension_name": "情境适配",
-      "weight": 0.2,
-      "score": 54,
-      "evidence_links": []
-    }
-  ],
-  "overall_score": 52.95,
-  "holistic_level": "D",
-  "review_flags": [
-    {
-      "type": "missing_evidence",
-      "dimension_id": "theory_application",
-      "severity": "medium"
-    },
-    {
-      "type": "missing_evidence",
-      "dimension_id": "logic_structure",
-      "severity": "medium"
-    },
-    {
-      "type": "missing_evidence",
-      "dimension_id": "evidence_support",
-      "severity": "medium"
-    },
-    {
-      "type": "missing_evidence",
-      "dimension_id": "context_fit",
-      "severity": "medium"
-    }
-  ]
+﻿{
+    "template_id":  "mgmt_case_v1",
+    "course":  "管理学",
+    "assignment_type":  "案例分析",
+    "analytic_scores":  [
+                            {
+                                "dimension_id":  "theory_application",
+                                "dimension_name":  "理论应用",
+                                "weight":  0.35,
+                                "score":  55,
+                                "evidence_links":  [
+
+                                                   ]
+                            },
+                            {
+                                "dimension_id":  "logic_structure",
+                                "dimension_name":  "逻辑结构",
+                                "weight":  0.25,
+                                "score":  50,
+                                "evidence_links":  [
+
+                                                   ]
+                            },
+                            {
+                                "dimension_id":  "evidence_support",
+                                "dimension_name":  "证据支撑",
+                                "weight":  0.2,
+                                "score":  52,
+                                "evidence_links":  [
+
+                                                   ]
+                            },
+                            {
+                                "dimension_id":  "context_fit",
+                                "dimension_name":  "情境适配",
+                                "weight":  0.2,
+                                "score":  54,
+                                "evidence_links":  [
+
+                                                   ]
+                            }
+                        ],
+    "overall_score":  52.95,
+    "holistic_level":  "D",
+    "review_flags":  [
+                         {
+                             "type":  "missing_evidence",
+                             "dimension_id":  "theory_application",
+                             "severity":  "medium"
+                         },
+                         {
+                             "type":  "missing_evidence",
+                             "dimension_id":  "logic_structure",
+                             "severity":  "medium"
+                         },
+                         {
+                             "type":  "missing_evidence",
+                             "dimension_id":  "evidence_support",
+                             "severity":  "medium"
+                         },
+                         {
+                             "type":  "missing_evidence",
+                             "dimension_id":  "context_fit",
+                             "severity":  "medium"
+                         }
+                     ]
 }
