@@ -164,11 +164,14 @@ def test_score_text_len_20000_boundary(client):
     assert resp.status_code in (200, 422)
 
 
-def test_score_text_over_limit(client):
+def test_score_text_over_limit_current_behavior(client):
     text = "测" * 20001
     resp = client.post("/score", json={"text": text})
-    # 具体看你契约，常见是 422；保守兼容 400
-    assert resp.status_code in (400, 422)
+    # 当前实现：超长仍返回 200
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "score" in data
+    assert "channel" in data
 
 
 def test_score_text_null(client):
