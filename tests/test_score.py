@@ -70,7 +70,7 @@ def test_score_llm_enabled_with_key_hit_llm(monkeypatch):
     importlib.reload(config)
     importlib.reload(scorer)
 
-    def mock_score_with_llm(text: str, api_key: str):
+    def mock_score_with_llm(*args, **kwargs):
         return {
             "score": 91,
             "level": "A",
@@ -79,12 +79,13 @@ def test_score_llm_enabled_with_key_hit_llm(monkeypatch):
             "reason": "llm_based",
         }
 
-    # patch scorer 模块内被调用的函数
+    # 关键：阻断真实外部调用
     monkeypatch.setattr(scorer, "score_with_llm", mock_score_with_llm)
 
     result = scorer.score_text("这是一个用于触发LLM通道的测试文本")
     assert result["channel"] == "llm"
     assert "score" in result
+
 
 
 def test_score_llm_timeout_fallback_rule(client, monkeypatch):
