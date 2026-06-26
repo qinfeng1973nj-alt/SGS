@@ -1,15 +1,15 @@
-# Changelog
+# CHANGELOG
 
-## v0.1.3 (Unreleased)
-
-### Added
-- TBD
-
-### Changed
-- TBD
+## v0.1.3 - 2026-06-26
 
 ### Fixed
-- TBD
+- Stabilize LLM-path unit tests by mocking external calls (no real API dependency in CI).
+- Align over-limit text test with current `/score` behavior.
+- Add boundary cases for text length and null input handling.
+
+### CI
+- Restrict pytest discovery scope to `tests/` via `pytest.ini` to avoid accidental collection.
+- Harden smoke-test reliability and ensure deterministic test execution across environments.
 
 ## v0.1.2 - 2026-06-26
 - Finalized README formatting and contract verification section
