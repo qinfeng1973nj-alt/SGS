@@ -58,7 +58,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke_test.ps1
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows 使用: .venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+
 pip install -U pip
 pip install -r requirements.txt
 ```
