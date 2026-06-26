@@ -58,7 +58,6 @@ def test_score_llm_enabled_but_no_key_fallback_rule(monkeypatch):
 
 def test_score_llm_enabled_with_key_hit_llm(monkeypatch):
     """
-    关键修复点：
     不依赖真实 API Key，不调用外部服务，直接 mock scorer.score_with_llm。
     """
     monkeypatch.setenv("ENABLE_LLM", "true")
@@ -79,13 +78,11 @@ def test_score_llm_enabled_with_key_hit_llm(monkeypatch):
             "reason": "llm_based",
         }
 
-    # 关键：阻断真实外部调用
     monkeypatch.setattr(scorer, "score_with_llm", mock_score_with_llm)
 
     result = scorer.score_text("这是一个用于触发LLM通道的测试文本")
     assert result["channel"] == "llm"
     assert "score" in result
-
 
 
 def test_score_llm_timeout_fallback_rule(client, monkeypatch):
@@ -96,7 +93,7 @@ def test_score_llm_timeout_fallback_rule(client, monkeypatch):
     monkeypatch.setattr(settings, "ENABLE_LLM", True)
     monkeypatch.setattr(settings, "LLM_API_KEY", "fake-key")
 
-    def mock_timeout(text: str, api_key: str):
+    def mock_timeout(*args, **kwargs):
         raise llm_client.LLMTimeoutError("request timeout")
 
     monkeypatch.setattr(scorer, "score_with_llm", mock_timeout)
@@ -116,7 +113,7 @@ def test_score_llm_auth_error_fallback_rule(client, monkeypatch):
     monkeypatch.setattr(settings, "ENABLE_LLM", True)
     monkeypatch.setattr(settings, "LLM_API_KEY", "bad-key")
 
-    def mock_auth_error(text: str, api_key: str):
+    def mock_auth_error(*args, **kwargs):
         raise llm_client.LLMAuthError("invalid api key")
 
     monkeypatch.setattr(scorer, "score_with_llm", mock_auth_error)
@@ -138,7 +135,7 @@ def test_score_unknown_llm_error_should_not_fallback(monkeypatch):
     class UnknownLLMError(Exception):
         pass
 
-    def raise_unknown(_text: str):
+    def raise_unknown(*args, **kwargs):
         raise UnknownLLMError("boom")
 
     monkeypatch.setattr(settings, "ENABLE_LLM", True)
@@ -151,7 +148,7 @@ def test_score_unknown_llm_error_should_not_fallback(monkeypatch):
 
 
 # -----------------------------
-# student_text 边界覆盖（你的 v0.1.3 待办）
+# student_text 边界覆盖
 # -----------------------------
 def test_score_text_len_20_boundary(client):
     text = "测" * 20
