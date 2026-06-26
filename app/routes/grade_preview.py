@@ -10,7 +10,7 @@ TEMPLATE_PATH = Path("data/course_template.json")
 
 
 class GradePreviewRequest(BaseModel):
-    student_text: str = Field(..., min_length=20, description="学生作业文本")
+    student_text: str = Field(..., min_length=20,max_length=20000, description="学生作业文本")
     template_id: Optional[str] = Field(default="mgmt_case_v1")
 
 
