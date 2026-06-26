@@ -1,8 +1,18 @@
 # SGS
 
 轻量化评分服务（FastAPI），已接入本地冒烟测试与 GitHub Actions CI 门禁。
-
 ---
+
+## Release & Verification
+
+- Latest stable tag: **v0.1.1**
+- Changelog: [CHANGELOG.md](./CHANGELOG.md)
+
+### Quick local check (Windows PowerShell)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke_test.ps1
+```
 
 ## 接口契约（最小）
 
