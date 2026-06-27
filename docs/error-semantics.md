@@ -1,22 +1,26 @@
-# /score Error Semantics (v0.1.4)
+# /score Error Semantics (v0.1.6)
 
 ## HTTP Status Mapping
 
-- 400 Bad Request
+- **400 Bad Request**
   - Invalid JSON
   - Missing required fields
   - Wrong field types
 
-- 422 Unprocessable Entity
+- **422 Unprocessable Entity**
   - Business validation failed
-  - text is null/empty
-  - text length out of range (20-20000)
+  - `text` is null/empty
+  - `text` length out of range (`20-20000`)
 
-- 500 Internal Server Error
-  - LLM client failure
-  - unexpected unhandled exception
+- **500 Internal Server Error**
+  - Unexpected unhandled exception in scoring flow
+  - Unknown scorer/LLM runtime failures are normalized to `INTERNAL_ERROR`
+
+---
 
 ## Error Payload (stable contract)
+
+### Validation example (422)
 
 ```json
 {
@@ -26,3 +30,28 @@
     "message": "text length must be between 20 and 20000"
   }
 }
+```
+### Unknown exception example (500, v0.1.6)
+
+```json
+{
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "reason": "INTERNAL_ERROR",
+    "message": "unexpected internal error",
+    "details": {
+      "reason": "RuntimeError"
+    }
+  }
+}
+```
+---
+
+## 📌 落库命令（直接执行）
+
+```bash
+git add docs/error-semantics.md
+git commit -m "docs(v0.1.6): fix markdown and document unknown exception semantics"
+git push origin master
+```
+
