@@ -46,12 +46,3 @@
 }
 ```
 ---
-
-## 📌 落库命令（直接执行）
-
-```bash
-git add docs/error-semantics.md
-git commit -m "docs(v0.1.6): fix markdown and document unknown exception semantics"
-git push origin master
-```
-
