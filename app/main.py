@@ -24,10 +24,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# 只创建一次 app，并保留 UTF-8 默认响应类
+# 先定义 app，再使用任何 @app.xxx 装饰器
 app = FastAPI(default_response_class=UTF8JSONResponse)
-
-# 只挂载一次路由
 app.include_router(grade_preview_router)
 
 
@@ -39,17 +37,23 @@ MIN_LEN = 20
 MAX_LEN = 20000
 
 
-def error_response(status_code: int, code: str, reason: str, message: str):
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "error": {
-                "code": code,
-                "reason": reason,
-                "message": message,
-            }
-        },
-    )
+def error_response(
+    status_code: int,
+    code: str,
+    reason: str,
+    message: str,
+    details: dict | None = None,
+):
+    body = {
+        "error": {
+            "code": code,
+            "reason": reason,
+            "message": message,
+        }
+    }
+    if details is not None:
+        body["error"]["details"] = details
+    return JSONResponse(status_code=status_code, content=body)
 
 
 @app.middleware("http")
@@ -69,7 +73,6 @@ def health():
 @app.post("/score")
 def score(payload: dict):
     try:
-        # 400: 缺字段 / 类型错误
         if "text" not in payload:
             return error_response(
                 400, "VALIDATION_ERROR", "MISSING_FIELD", "text is required"
@@ -82,7 +85,6 @@ def score(payload: dict):
                 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
             )
 
-        # 422: 业务校验失败
         if text == "":
             return error_response(
                 422, "VALIDATION_ERROR", "TEXT_NULL", "text must not be null or empty"
@@ -105,11 +107,14 @@ def score(payload: dict):
                 f"text length must be between {MIN_LEN} and {MAX_LEN}",
             )
 
-        # 正常路径：沿用你现有服务函数
         return score_text(text)
 
     except Exception as e:
         logger.exception("Unhandled error in /score: %s", e)
         return error_response(
-            500, "INTERNAL_ERROR", "INTERNAL_ERROR", "unexpected internal error"
+            500,
+            "INTERNAL_ERROR",
+            "INTERNAL_ERROR",
+            "unexpected internal error",
+            {"reason": type(e).__name__},
         )
