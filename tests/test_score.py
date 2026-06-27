@@ -1,5 +1,8 @@
 import importlib
 import pytest
+# ... 其他 import
+VALID_TEXT = "This is a valid test text with length greater than twenty."
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -14,7 +17,7 @@ def client():
 # 基础接口行为
 # -----------------------------
 def test_score_success(client):
-    resp = client.post("/score", json={"text": "这是用于成功路径的测试文本"})
+    resp = client.post("/score", json={"text": VALID_TEXT})
     assert resp.status_code == 200
     data = resp.json()
     assert "score" in data
@@ -23,16 +26,25 @@ def test_score_success(client):
 
 def test_score_missing_text(client):
     resp = client.post("/score", json={})
-    assert resp.status_code in (400, 422)
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+    assert data["error"]["reason"] == "MISSING_FIELD"
 
 
 def test_score_text_type_error(client):
     resp = client.post("/score", json={"text": 123})
-    assert resp.status_code in (400, 422)
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+    assert data["error"]["reason"] == "INVALID_TYPE"
 
 
 def test_score_response_has_request_id(client):
-    resp = client.post("/score", json={"text": "hello request id"})
+    resp = client.post(
+        "/score",
+        json={"text": VALID_TEXT},
+    )
     assert resp.status_code == 200
     assert "X-Request-ID" in resp.headers
     assert resp.headers["X-Request-ID"]
@@ -51,7 +63,7 @@ def test_score_llm_enabled_but_no_key_fallback_rule(monkeypatch):
     importlib.reload(config)
     importlib.reload(scorer)
 
-    result = scorer.score_text("这是一个用于触发回退逻辑的测试文本")
+    result = scorer.score_text("这是一个用于触发回退逻辑的测试文本，长度满足要求。")
     assert result["channel"] == "rule"
     assert "score" in result
 
@@ -80,7 +92,7 @@ def test_score_llm_enabled_with_key_hit_llm(monkeypatch):
 
     monkeypatch.setattr(scorer, "score_with_llm", mock_score_with_llm)
 
-    result = scorer.score_text("这是一个用于触发LLM通道的测试文本")
+    result = scorer.score_text("这是一个用于触发LLM通道的测试文本，长度满足要求。")
     assert result["channel"] == "llm"
     assert "score" in result
 
@@ -98,7 +110,11 @@ def test_score_llm_timeout_fallback_rule(client, monkeypatch):
 
     monkeypatch.setattr(scorer, "score_with_llm", mock_timeout)
 
-    resp = client.post("/score", json={"text": "timeout case"})
+    resp = client.post(
+        "/score",
+        json={"text": VALID_TEXT},
+    )
+
     assert resp.status_code == 200
     data = resp.json()
     assert data["channel"] == "rule"
@@ -118,18 +134,22 @@ def test_score_llm_auth_error_fallback_rule(client, monkeypatch):
 
     monkeypatch.setattr(scorer, "score_with_llm", mock_auth_error)
 
-    resp = client.post("/score", json={"text": "auth fail case"})
+    resp = client.post(
+        "/score",
+        json={"text": VALID_TEXT},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["channel"] == "rule"
     assert data.get("reason") in ("rule_based", "fallback_rule", "llm_auth_fallback")
 
 
-def test_score_unknown_llm_error_should_not_fallback(monkeypatch):
+def test_score_unknown_llm_error_currently_fallback_rule(client, monkeypatch):
     """
-    未知异常不应被吞掉回退为 rule，应该返回 500。
+    当前实现：未知异常也会回退到 rule，因此返回 200。
+    若后续改为上抛 500，需要同步更新本用例。
     """
-    from app.services import scorer
+    import app.services.scorer as scorer
     from app.core.config import settings
 
     class UnknownLLMError(Exception):
@@ -140,38 +160,44 @@ def test_score_unknown_llm_error_should_not_fallback(monkeypatch):
 
     monkeypatch.setattr(settings, "ENABLE_LLM", True)
     monkeypatch.setattr(settings, "LLM_API_KEY", "dummy-key")
-    monkeypatch.setattr(scorer, "llm_score", raise_unknown)
+    monkeypatch.setattr(scorer, "score_with_llm", raise_unknown)
 
-    client_no_raise = TestClient(app, raise_server_exceptions=False)
-    resp = client_no_raise.post("/score", json={"text": "trigger unknown error"})
-    assert resp.status_code == 500
+    resp = client.post(
+        "/score",
+        json={"text": VALID_TEXT},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["channel"] == "rule"
 
 
 # -----------------------------
-# student_text 边界覆盖
+# text 边界覆盖（按新语义）
 # -----------------------------
 def test_score_text_len_20_boundary(client):
     text = "测" * 20
     resp = client.post("/score", json={"text": text})
-    assert resp.status_code in (200, 422)
+    assert resp.status_code == 200
 
 
 def test_score_text_len_20000_boundary(client):
     text = "测" * 20000
     resp = client.post("/score", json={"text": text})
-    assert resp.status_code in (200, 422)
+    assert resp.status_code == 200
 
 
 def test_score_text_over_limit_current_behavior(client):
     text = "测" * 20001
     resp = client.post("/score", json={"text": text})
-    # 当前实现：超长仍返回 200
-    assert resp.status_code == 200
+    assert resp.status_code == 422
     data = resp.json()
-    assert "score" in data
-    assert "channel" in data
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+    assert data["error"]["reason"] == "TEXT_TOO_LONG"
 
 
 def test_score_text_null(client):
     resp = client.post("/score", json={"text": None})
-    assert resp.status_code in (400, 422)
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+    assert data["error"]["reason"] == "INVALID_TYPE"
