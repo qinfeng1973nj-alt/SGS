@@ -1,5 +1,8 @@
 import importlib
 import pytest
+# ... 其他 import
+VALID_TEXT = "This is a valid test text with length greater than twenty."
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -14,7 +17,7 @@ def client():
 # 基础接口行为
 # -----------------------------
 def test_score_success(client):
-    resp = client.post("/score", json={"text": "这是用于成功路径的测试文本，用于满足最小长度要求。"})
+    resp = client.post("/score", json={"text": VALID_TEXT})
     assert resp.status_code == 200
     data = resp.json()
     assert "score" in data
@@ -40,7 +43,7 @@ def test_score_text_type_error(client):
 def test_score_response_has_request_id(client):
     resp = client.post(
         "/score",
-        json={"text": "hello request id, this sentence is definitely long enough."},
+        json={"text": VALID_TEXT},
     )
     assert resp.status_code == 200
     assert "X-Request-ID" in resp.headers
@@ -109,8 +112,9 @@ def test_score_llm_timeout_fallback_rule(client, monkeypatch):
 
     resp = client.post(
         "/score",
-        json={"text": "timeout case text is intentionally longer than twenty chars."},
+        json={"text": VALID_TEXT},
     )
+
     assert resp.status_code == 200
     data = resp.json()
     assert data["channel"] == "rule"
@@ -132,7 +136,7 @@ def test_score_llm_auth_error_fallback_rule(client, monkeypatch):
 
     resp = client.post(
         "/score",
-        json={"text": "auth fail case text is intentionally longer than twenty chars."},
+        json={"text": VALID_TEXT},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -160,7 +164,7 @@ def test_score_unknown_llm_error_currently_fallback_rule(client, monkeypatch):
 
     resp = client.post(
         "/score",
-        json={"text": "trigger unknown error with enough length for validation pass"},
+        json={"text": VALID_TEXT},
     )
     assert resp.status_code == 200
     data = resp.json()
