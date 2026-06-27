@@ -31,6 +31,7 @@
   }
 }
 ```
+
 ### Unknown exception example (500, v0.1.6)
 
 ```json
