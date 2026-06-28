@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v0.1.8 - 2026-06-28
+
+### Added
+- Add `scripts/release_guard.ps1` to enforce pre-release checks for tag base on `origin/master`.
+
+### Validation
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\release_guard.ps1 -Tag v0.1.8-rc
+```
+```text
+[OK] release guard passed on 0d58cd4fa6bca44f49354bacbe049e77272e39be
+```
+
 ## v0.1.3 - 2026-06-26
 
 ### Fixed
@@ -25,3 +38,4 @@
 ## v0.1.0 - 2026-06-21
 - Initial score endpoint with pydantic schemas
 - Endpoint validated via `/docs`
+
