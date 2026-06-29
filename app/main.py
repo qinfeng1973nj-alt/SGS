@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.services.scorer import score_text
+from app.pipeline.scoring_pipeline import run_scoring_pipeline
 from app.routes.grade_preview import router as grade_preview_router
 
 
@@ -24,7 +24,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# 先定义 app，再使用任何 @app.xxx 装饰器
 app = FastAPI(default_response_class=UTF8JSONResponse)
 app.include_router(grade_preview_router)
 
@@ -68,6 +67,24 @@ async def add_request_id(request: Request, call_next):
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+def score_text(text: str) -> dict:
+    """
+    兼容层：
+    - 保留 app.main.score_text，供旧测试 monkeypatch
+    - 内部实际走 v0.1.9 pipeline
+    """
+    result = run_scoring_pipeline(text)
+    return {
+        # 旧协议兼容字段（测试依赖）
+        "score": result["total_score"],
+        "channel": "rule",
+        "reason": "fallback_rule",
+        # 新协议字段
+        "ok": True,
+        "data": result,
+    }
 
 
 @app.post("/score")
