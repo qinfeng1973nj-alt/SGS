@@ -10,18 +10,13 @@ def load_error_schema():
         return json.load(f)
 
 
-def test_error_envelope_schema_validation():
+def test_error_envelope_schema_validation(client):
     schema = load_error_schema()
     validator = Draft202012Validator(schema)
 
-    payload = {
-        "error": {
-            "code": "NOT_FOUND",
-            "reason": "resource_missing",
-            "message": "Resource not found",
-            "path": "/__not_found__",
-            "trace_id": "trace-123"
-        }
-    }
+    # 用非法请求体触发错误响应（避免命中 FastAPI 默认 404 格式）
+    resp = client.post("/score", json={})
+    assert resp.status_code in (400, 422, 500)
 
+    payload = resp.json()
     validator.validate(payload)
