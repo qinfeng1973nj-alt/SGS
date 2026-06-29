@@ -3,11 +3,12 @@ import logging
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
 from app.pipeline.scoring_pipeline import run_scoring_pipeline
 from app.routes.grade_preview import router as grade_preview_router
+from app.schemas import ScoreRequest
 
 
 class UTF8JSONResponse(JSONResponse):
@@ -21,16 +22,10 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
-
 logger = logging.getLogger(__name__)
 
 app = FastAPI(default_response_class=UTF8JSONResponse)
 app.include_router(grade_preview_router)
-
-
-class ScoreRequest(BaseModel):
-    text: str
-
 
 MIN_LEN = 20
 MAX_LEN = 20000
@@ -55,6 +50,37 @@ def error_response(
     return JSONResponse(status_code=status_code, content=body)
 
 
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    仅对 /score 兼容旧语义；其他路由维持 FastAPI 默认 422。
+    """
+    if request.url.path != "/score":
+        return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+    errors = exc.errors() or []
+
+    reason = "MISSING_FIELD"
+    message = "text is required"
+
+    for err in errors:
+        loc = tuple(err.get("loc", ()))
+        err_type = err.get("type", "")
+
+        if loc == ("body", "text") and err_type == "missing":
+            reason = "MISSING_FIELD"
+            message = "text is required"
+            break
+
+        # 类型不匹配（如 text=123、body 非对象等）
+        if err_type.startswith(("string_type", "model_attributes_type", "dict_type", "json_invalid")):
+            reason = "INVALID_TYPE"
+            message = "text must be a string"
+            break
+
+    return error_response(400, "VALIDATION_ERROR", reason, message)
+
+
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
@@ -73,30 +99,36 @@ def score_text(text: str) -> dict:
     """
     兼容层：
     - 保留 app.main.score_text，供旧测试 monkeypatch
-    - 内部实际走 v0.1.9 pipeline
+    - 内部实际走 pipeline
     """
     result = run_scoring_pipeline(text)
     return {
-        # 旧协议兼容字段（测试依赖）
         "score": result["total_score"],
         "channel": "rule",
         "reason": "fallback_rule",
-        # 新协议字段
         "ok": True,
         "data": result,
     }
 
 
 @app.post("/score")
-def score(payload: dict):
+def score(payload: ScoreRequest):
     try:
-        if "text" not in payload:
+        # 1) 字段缺失 -> MISSING_FIELD
+        if "text" not in payload.model_fields_set:
             return error_response(
                 400, "VALIDATION_ERROR", "MISSING_FIELD", "text is required"
             )
 
-        text = payload["text"]
+        # 2) 显式 null -> INVALID_TYPE
+        if payload.text is None:
+            return error_response(
+                400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
+            )
 
+        text = payload.text
+
+        # 防御式保留
         if not isinstance(text, str):
             return error_response(
                 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
