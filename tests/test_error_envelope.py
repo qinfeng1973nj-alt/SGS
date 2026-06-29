@@ -6,7 +6,7 @@ from jsonschema import Draft202012Validator
 
 def load_error_schema():
     schema_path = Path(__file__).resolve().parents[1] / "schemas" / "error_envelope.schema.json"
-    with schema_path.open("r", encoding="utf-8") as f:
+    with schema_path.open("r", encoding="utf-8-sig") as f:
         return json.load(f)
 
 
