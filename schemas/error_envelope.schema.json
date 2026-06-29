@@ -1,0 +1,22 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/error_envelope.schema.json",
+  "title": "ErrorEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "reason", "message", "path", "trace_id"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "trace_id": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
