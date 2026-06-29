@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file.  
 The format follows a Keep a Changelog–style structure and Semantic Versioning in practice.
 
+## [Unreleased]
+
+### Added
+- test(v0.2.2): 新增契约测试：
+  - `tests/test_healthz.py`（`GET /healthz` 基础可用性）
+  - `tests/test_version.py`（`GET /version` 返回结构校验）
+  - `tests/test_error_envelope.py`（错误响应 envelope 结构校验，当前实现为 `error` 嵌套对象）
+
 ## v0.2.1 - 2026-06-29
 
 ### Added
@@ -10,13 +18,9 @@ The format follows a Keep a Changelog–style structure and Semantic Versioning 
 - Added `GET /version` endpoint exposing build metadata from `APP_VERSION` and `GIT_SHA`.
 
 ### Changed
-- Unified API error response envelope to include:
-  - `code`
-  - `reason`
-  - `message`
-  - `path`
-  - `trace_id`
-- Improved request traceability via `request.state.request_id`.
+- Unified API error response envelope with required fields:
+  - top-level: `error`
+  - nested fields: `error.code`, `error.reason`, `error.message`, `error.path`, `error.trace_id`
 
 ### Fixed
 - Mapped malformed JSON on `/score` to `INVALID_TYPE` while preserving compatibility semantics for existing validation flows.
