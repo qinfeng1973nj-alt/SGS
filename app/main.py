@@ -1,5 +1,6 @@
 ﻿import json
 import logging
+import os
 import uuid
 
 from fastapi import FastAPI, Request
@@ -29,20 +30,26 @@ app.include_router(grade_preview_router)
 
 MIN_LEN = 20
 MAX_LEN = 20000
+APP_VERSION = os.getenv("APP_VERSION", "v0.2.1-dev")
+GIT_SHA = os.getenv("GIT_SHA", "unknown")
 
 
 def error_response(
+    request: Request,
     status_code: int,
     code: str,
     reason: str,
     message: str,
     details: dict | None = None,
 ):
+    trace_id = getattr(request.state, "request_id", None)
     body = {
         "error": {
             "code": code,
             "reason": reason,
             "message": message,
+            "path": request.url.path,
+            "trace_id": trace_id,
         }
     }
     if details is not None:
@@ -53,12 +60,19 @@ def error_response(
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
     """
-    仅对 /score 兼容旧语义；其他路由维持 FastAPI 默认 422。
+    仅对 /score 兼容旧语义；其他路由维持 FastAPI 默认 422（但统一 envelope）。
     """
-    if request.url.path != "/score":
-        return JSONResponse(status_code=422, content={"detail": exc.errors()})
-
     errors = exc.errors() or []
+
+    if request.url.path != "/score":
+        return error_response(
+            request=request,
+            status_code=422,
+            code="VALIDATION_ERROR",
+            reason="REQUEST_INVALID",
+            message="request validation failed",
+            details={"errors": errors},
+        )
 
     reason = "MISSING_FIELD"
     message = "text is required"
@@ -78,7 +92,13 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
             message = "text must be a string"
             break
 
-    return error_response(400, "VALIDATION_ERROR", reason, message)
+    return error_response(
+        request=request,
+        status_code=400,
+        code="VALIDATION_ERROR",
+        reason=reason,
+        message=message,
+    )
 
 
 @app.middleware("http")
@@ -93,6 +113,19 @@ async def add_request_id(request: Request, call_next):
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
+
+
+@app.get("/version")
+def version():
+    return {
+        "version": APP_VERSION,
+        "commit": GIT_SHA,
+    }
 
 
 def score_text(text: str) -> dict:
@@ -112,18 +145,18 @@ def score_text(text: str) -> dict:
 
 
 @app.post("/score")
-def score(payload: ScoreRequest):
+def score(payload: ScoreRequest, request: Request):
     try:
         # 1) 字段缺失 -> MISSING_FIELD
         if "text" not in payload.model_fields_set:
             return error_response(
-                400, "VALIDATION_ERROR", "MISSING_FIELD", "text is required"
+                request, 400, "VALIDATION_ERROR", "MISSING_FIELD", "text is required"
             )
 
         # 2) 显式 null -> INVALID_TYPE
         if payload.text is None:
             return error_response(
-                400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
+                request, 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
             )
 
         text = payload.text
@@ -131,17 +164,18 @@ def score(payload: ScoreRequest):
         # 防御式保留
         if not isinstance(text, str):
             return error_response(
-                400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
+                request, 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
             )
 
         if text == "":
             return error_response(
-                422, "VALIDATION_ERROR", "TEXT_NULL", "text must not be null or empty"
+                request, 422, "VALIDATION_ERROR", "TEXT_NULL", "text must not be null or empty"
             )
 
         n = len(text)
         if n < MIN_LEN:
             return error_response(
+                request,
                 422,
                 "VALIDATION_ERROR",
                 "TEXT_TOO_SHORT",
@@ -150,6 +184,7 @@ def score(payload: ScoreRequest):
 
         if n > MAX_LEN:
             return error_response(
+                request,
                 422,
                 "VALIDATION_ERROR",
                 "TEXT_TOO_LONG",
@@ -161,6 +196,7 @@ def score(payload: ScoreRequest):
     except Exception as e:
         logger.exception("Unhandled error in /score: %s", e)
         return error_response(
+            request,
             500,
             "INTERNAL_ERROR",
             "INTERNAL_ERROR",
