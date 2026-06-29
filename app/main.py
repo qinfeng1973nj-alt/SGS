@@ -6,6 +6,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.pipeline.scoring_pipeline import run_scoring_pipeline
 from app.routes.grade_preview import router as grade_preview_router
@@ -57,10 +58,37 @@ def error_response(
     return JSONResponse(status_code=status_code, content=body)
 
 
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """
+    统一处理 FastAPI/Starlette 抛出的 HTTP 异常（含 404 Not Found），
+    避免返回默认 {"detail": "..."} 破坏契约。
+    """
+    reason_map = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        405: "METHOD_NOT_ALLOWED",
+        409: "CONFLICT",
+        422: "REQUEST_INVALID",
+        429: "RATE_LIMITED",
+    }
+    reason = reason_map.get(exc.status_code, "HTTP_ERROR")
+
+    return error_response(
+        request=request,
+        status_code=exc.status_code,
+        code="HTTP_ERROR",
+        reason=reason,
+        message=str(exc.detail) if exc.detail else "http error",
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
     """
-    仅对 /score 兼容旧语义；其他路由维持 FastAPI 默认 422（但统一 envelope）。
+    仅对 /score 兼容旧语义；其他路由维持 422（但统一 envelope）。
     """
     errors = exc.errors() or []
 
