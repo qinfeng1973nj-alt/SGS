@@ -2,7 +2,9 @@ from pydantic import BaseModel, Field
 
 
 class ScoreRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=2000, description="待评分文本")
+    # 允许 None；缺失字段时默认 None。
+    # 这样可由 /score 统一返回旧协议的 400 + error body，而不是框架 422。
+    text: str | None = Field(default=None, description="待评分文本")
 
 
 class ScoreResponse(BaseModel):
