@@ -6,6 +6,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.pipeline.scoring_pipeline import run_scoring_pipeline
 from app.routes.grade_preview import router as grade_preview_router
@@ -96,6 +97,28 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
         request=request,
         status_code=400,
         code="VALIDATION_ERROR",
+        reason=reason,
+        message=message,
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """
+    统一 404/405 等 Starlette/FastAPI HTTP 异常为 ErrorEnvelope。
+    """
+    status_code = exc.status_code
+    reason_map = {
+        404: "NOT_FOUND",
+        405: "METHOD_NOT_ALLOWED",
+    }
+    reason = reason_map.get(status_code, "HTTP_ERROR")
+    message = str(exc.detail) if exc.detail else "http error"
+
+    return error_response(
+        request=request,
+        status_code=status_code,
+        code="HTTP_ERROR",
         reason=reason,
         message=message,
     )
