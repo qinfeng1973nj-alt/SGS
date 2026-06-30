@@ -126,10 +126,15 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-    request.state.request_id = request_id
+    x_trace_id = request.headers.get("X-Trace-Id")
+    x_request_id = request.headers.get("X-Request-ID")
+
+    trace_id = (x_trace_id or "").strip() or (x_request_id or "").strip() or str(uuid.uuid4())
+    request.state.request_id = trace_id
+
     response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Trace-Id"] = trace_id
+    response.headers["X-Request-ID"] = trace_id  # backward compatibility
     return response
 
 
