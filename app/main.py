@@ -8,6 +8,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.db import Base, engine
+import app.models  # noqa: F401
 from app.pipeline.scoring_pipeline import run_scoring_pipeline
 from app.routes.grade_preview import router as grade_preview_router
 from app.routes.tasks import router as tasks_router
@@ -29,10 +31,12 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(default_response_class=UTF8JSONResponse)
 
-# 现有路由
+# 自动建表（SQLite/SQLAlchemy）
+Base.metadata.create_all(bind=engine)
+
+# 路由注册
 app.include_router(grade_preview_router)
 app.include_router(tasks_router)
-
 
 MIN_LEN = 20
 MAX_LEN = 20000
@@ -66,7 +70,7 @@ def error_response(
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
     """
-    仅对 /score 兼容旧语义；其他路由维持 FastAPI 默认 422（但统一 envelope）。
+    仅对 /score 兼容旧语义；其他路由维持 422（但统一 envelope）。
     """
     errors = exc.errors() or []
 
@@ -92,7 +96,6 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
             message = "text is required"
             break
 
-        # 类型不匹配（如 text=123、body 非对象等）
         if err_type.startswith(("string_type", "model_attributes_type", "dict_type", "json_invalid")):
             reason = "INVALID_TYPE"
             message = "text must be a string"
@@ -110,7 +113,7 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """
-    统一 404/405 等 Starlette/FastAPI HTTP 异常为 ErrorEnvelope。
+    统一 404/405 等 HTTP 异常为 ErrorEnvelope。
     """
     status_code = exc.status_code
     reason_map = {
@@ -133,10 +136,9 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 async def add_request_id(request: Request, call_next):
     x_trace_id = request.headers.get("X-Trace-Id")
     x_request_id = request.headers.get("X-Request-ID")
-
     trace_id = (x_trace_id or "").strip() or (x_request_id or "").strip() or str(uuid.uuid4())
-    request.state.request_id = trace_id
 
+    request.state.request_id = trace_id
     response = await call_next(request)
     response.headers["X-Trace-Id"] = trace_id
     response.headers["X-Request-ID"] = trace_id  # backward compatibility
@@ -180,25 +182,16 @@ def score_text(text: str) -> dict:
 @app.post("/score")
 def score(payload: ScoreRequest, request: Request):
     try:
-        # 1) 字段缺失 -> MISSING_FIELD
         if "text" not in payload.model_fields_set:
-            return error_response(
-                request, 400, "VALIDATION_ERROR", "MISSING_FIELD", "text is required"
-            )
+            return error_response(request, 400, "VALIDATION_ERROR", "MISSING_FIELD", "text is required")
 
-        # 2) 显式 null -> INVALID_TYPE
         if payload.text is None:
-            return error_response(
-                request, 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
-            )
+            return error_response(request, 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string")
 
         text = payload.text
 
-        # 防御式保留
         if not isinstance(text, str):
-            return error_response(
-                request, 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string"
-            )
+            return error_response(request, 400, "VALIDATION_ERROR", "INVALID_TYPE", "text must be a string")
 
         if text == "":
             return error_response(

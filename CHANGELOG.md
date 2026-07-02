@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file.  
 The format follows a Keep a Changelog–style structure and Semantic Versioning in practice.
 
+## v0.2.7 - Trace Cleanup
+
+- 标准化 Trace ID 解析优先级：`X-Trace-Id > X-Request-ID > UUID`
+- 响应头统一输出 `X-Trace-Id`，并保留 `X-Request-ID` 兼容旧客户端
+- 同步最终 trace 到 `request.state.request_id`
+- 保证错误信封 `error.trace_id` 与响应头 `X-Trace-Id` 严格一致（含 404）
+- 新增/完善相关测试与文档，确保行为可回归验证
+
 ## v0.2.1 - 2026-06-29
 
 ### Added
