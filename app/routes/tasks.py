@@ -57,14 +57,20 @@ def list_tasks():
     return {"ok": True, "items": _fake_tasks}
 
 
+@router.get("/{task_id}")
+def get_task(task_id: int):
+    task = next((t for t in _fake_tasks if t["id"] == task_id), None)
+    if not task:
+        raise HTTPException(status_code=404, detail="task not found")
+    return {"ok": True, "item": task}
+
+
 @router.post("/{task_id}/assignment-file")
 async def upload_assignment_file(task_id: int, file: UploadFile = File(...)):
-    # 1) 检查任务存在
     task = next((t for t in _fake_tasks if t["id"] == task_id), None)
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
 
-    # 2) 检查扩展名
     if not file.filename or "." not in file.filename:
         raise HTTPException(status_code=400, detail="invalid file name")
 
@@ -72,7 +78,6 @@ async def upload_assignment_file(task_id: int, file: UploadFile = File(...)):
     if ext not in {"pdf", "doc", "docx", "txt"}:
         raise HTTPException(status_code=400, detail="unsupported file type")
 
-    # 3) 落盘
     save_name = f"{uuid.uuid4().hex}.{ext}"
     save_path = os.path.join(UPLOAD_DIR, save_name)
 
@@ -80,7 +85,6 @@ async def upload_assignment_file(task_id: int, file: UploadFile = File(...)):
     with open(save_path, "wb") as f:
         f.write(content)
 
-    # 4) 记录
     now = datetime.now().isoformat()
     rec = {
         "id": len(_fake_files) + 1,
@@ -94,3 +98,13 @@ async def upload_assignment_file(task_id: int, file: UploadFile = File(...)):
     _fake_files.append(rec)
 
     return {"ok": True, "task_id": task_id, "file": rec}
+
+
+@router.get("/{task_id}/files")
+def list_task_files(task_id: int):
+    task = next((t for t in _fake_tasks if t["id"] == task_id), None)
+    if not task:
+        raise HTTPException(status_code=404, detail="task not found")
+
+    items = [f for f in _fake_files if f["task_id"] == task_id]
+    return {"ok": True, "task_id": task_id, "items": items}
