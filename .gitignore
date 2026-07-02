@@ -1,21 +1,4 @@
-# env files
-.env
-.env.*
-!.env.example
-
-# python cache
-__pycache__/
-*.pyc
-
-# virtual env
-.venv/
-
-# smoke artifacts
-resp_utf8.json
-resp.json
-uvicorn.out.log
-uvicorn.err.log
-
-data/
-
-artifacts/
+﻿# runtime artifacts
+sgs.db
+artifacts/assignments/
+demo_assignment.txt
