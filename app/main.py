@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.pipeline.scoring_pipeline import run_scoring_pipeline
 from app.routes.grade_preview import router as grade_preview_router
+from app.routes.tasks import router as tasks_router
 from app.schemas import ScoreRequest
 
 
@@ -27,7 +28,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(default_response_class=UTF8JSONResponse)
+
+# 现有路由
 app.include_router(grade_preview_router)
+app.include_router(tasks_router)
+
 
 MIN_LEN = 20
 MAX_LEN = 20000
@@ -55,7 +60,7 @@ def error_response(
     }
     if details is not None:
         body["error"]["details"] = details
-    return JSONResponse(status_code=status_code, content=body)
+    return UTF8JSONResponse(status_code=status_code, content=body)
 
 
 @app.exception_handler(RequestValidationError)
